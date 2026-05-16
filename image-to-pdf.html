@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画像ファイルPDF変換</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<!-- jsPDF: 同じフォルダにある jspdf.umd.min.js を読み込みます。
+     ファイルが無い場合は、下記URLから保存してください:
+     https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js -->
+<script src="./jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1612;
+    --paper: #f4ede0;
+    --paper-dim: #ebe2d1;
+    --accent: #d9531e;
+    --accent-deep: #a13a0f;
+    --muted: #6b6256;
+    --line: #2a241d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(217, 83, 30, 0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(26, 22, 18, 0.03) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.07 0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 1;
+    mix-blend-mode: multiply;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 2rem 4rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3rem;
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .date-stamp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-align: right;
+  }
+
+  .edition {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 4rem;
+    position: relative;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.4em;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  h1 {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.25rem, 7vw, 5rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .tagline {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 1rem;
+    color: var(--muted);
+    max-width: 540px;
+    margin: 0 auto;
+    line-height: 1.7;
+    font-weight: 400;
+  }
+
+  .dropzone {
+    border: 2px dashed var(--line);
+    border-radius: 4px;
+    padding: 4rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.3);
+    position: relative;
+    margin-bottom: 2rem;
+  }
+
+  .dropzone:hover {
+    border-color: var(--accent);
+    background: rgba(217, 83, 30, 0.04);
+    transform: translateY(-2px);
+  }
+
+  .dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(217, 83, 30, 0.08);
+    border-style: solid;
+  }
+
+  .dropzone-icon {
+    font-family: 'Fraunces', serif;
+    font-size: 4rem;
+    font-weight: 300;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    line-height: 1;
+  }
+
+  .dropzone-label {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+
+  .dropzone-hint {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    font-weight: 400;
+  }
+
+  #fileInput { display: none; }
+
+  .settings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 2rem;
+  }
+
+  .setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .setting-label {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  select, input[type="text"] {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 0.75rem 1rem;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  select:focus, input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .file-list {
+    margin-bottom: 2rem;
+  }
+
+  .file-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .file-list-title {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+  }
+
+  .file-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+
+  .file-item {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    transition: all 0.2s;
+    animation: slideIn 0.4s ease backwards;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .file-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  .file-item.dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+  }
+
+  .file-thumb-wrap {
+    position: relative;
+    width: 100%;
+    height: 140px;
+    background: var(--paper-dim);
+    overflow: hidden;
+  }
+
+  .file-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+    background: var(--paper-dim);
+  }
+
+  .file-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 22, 18, 0.7);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    padding: 0.5rem;
+  }
+
+  .file-item:hover .file-overlay {
+    opacity: 1;
+  }
+
+  .overlay-btn {
+    background: var(--paper);
+    border: 1px solid var(--paper);
+    color: var(--ink);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0;
+  }
+
+  .overlay-btn:hover {
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
+    transform: scale(1.1);
+  }
+
+  .overlay-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .overlay-btn.btn-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .rotation-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: var(--accent);
+    color: var(--paper);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .rotation-badge.visible {
+    opacity: 1;
+  }
+
+  /* Sort options bar */
+  .sort-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .sort-btn {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.7rem;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 0.4rem 0.85rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  .sort-btn:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .sort-btn-icon {
+    display: inline-block;
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .file-info {
+    padding: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .file-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .file-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-size {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .file-remove {
+    background: none;
+    border: 1px solid var(--line);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--ink);
+    transition: all 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .file-remove:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+  }
+
+  .file-order {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--ink);
+    color: var(--paper);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+
+  .btn {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    padding: 1.25rem 2.5rem;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+    font-weight: 500;
+    position: relative;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--paper);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--accent);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .status {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    min-height: 1.5em;
+    font-weight: 500;
+  }
+
+  .status.success { color: var(--accent); }
+  .status.error { color: #b32d2e; }
+
+  .progress {
+    width: 100%;
+    max-width: 400px;
+    height: 2px;
+    background: var(--paper-dim);
+    margin: 1rem auto;
+    overflow: hidden;
+    border-radius: 2px;
+    display: none;
+  }
+
+  .progress.active { display: block; }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    flex-wrap: wrap;
+    gap: 1rem;
+    text-transform: uppercase;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 640px) {
+    .container { padding: 2rem 1rem 3rem; }
+    header { grid-template-columns: 1fr; gap: 0.5rem; text-align: center; }
+    .date-stamp { text-align: center; }
+    .dropzone { padding: 3rem 1rem; }
+    .actions { flex-direction: column; }
+    .btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="logo">PRESS / 01</div>
+    <div class="edition">— Image Conversion Atelier —</div>
+    <div class="date-stamp" id="dateStamp">—</div>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">Vol.01 · A Quiet Utility</div>
+    <h1>画像ファイル<br><em>PDF変換</em></h1>
+    <p class="tagline">画像をドロップして、並び替え、ひとつのPDFへ変換。<br>すべてブラウザ内で完結し、ファイルはアップロードされません。</p>
+  </section>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon">+</div>
+    <div class="dropzone-label">ここに画像をドラッグ</div>
+    <div class="dropzone-hint">— またはクリックして選択 ・ PNG ・ JPG ・ WEBP ・ GIF ・ BMP —</div>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/bmp" multiple>
+  </div>
+
+  <div class="settings">
+    <div class="setting-group">
+      <label class="setting-label" for="pageSize">用紙サイズ</label>
+      <select id="pageSize">
+        <option value="a4">A4（210 × 297mm）</option>
+        <option value="letter">レター（8.5 × 11inch）</option>
+        <option value="a3">A3（297 × 420mm）</option>
+        <option value="a5">A5（148 × 210mm）</option>
+        <option value="b4">B4（250 × 353mm）</option>
+        <option value="b5">B5（176 × 250mm）</option>
+        <option value="legal">リーガル（8.5 × 14inch）</option>
+        <option value="fit">画像サイズに合わせる</option>
+      </select>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="orientation">向き</label>
+      <select id="orientation">
+        <option value="auto">自動</option>
+        <option value="portrait">縦</option>
+        <option value="landscape">横</option>
+      </select>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="margin">余白</label>
+      <select id="margin">
+        <option value="10">標準（10mm）</option>
+        <option value="0">なし</option>
+        <option value="5">狭い（5mm）</option>
+        <option value="20">広い（20mm）</option>
+      </select>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="quality">画質</label>
+      <select id="quality">
+        <option value="0.92">高</option>
+        <option value="1.0">最高</option>
+        <option value="0.75">中</option>
+        <option value="0.5">軽量</option>
+      </select>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="filename">ファイル名</label>
+      <input type="text" id="filename" value="converted" placeholder="converted">
+    </div>
+  </div>
+
+  <div class="file-list hidden" id="fileList">
+    <div class="file-list-header">
+      <div class="file-list-title">— 変換待ち ・ ドラッグで並び替え —</div>
+      <div class="file-count" id="fileCount">0 件</div>
+    </div>
+    <div class="sort-bar" style="margin-bottom:1rem;">
+      <button class="sort-btn" data-sort="name-asc"><span class="sort-btn-icon">A↓</span>名前 昇順</button>
+      <button class="sort-btn" data-sort="name-desc"><span class="sort-btn-icon">A↑</span>名前 降順</button>
+      <button class="sort-btn" data-sort="size-asc"><span class="sort-btn-icon">▴</span>サイズ 小→大</button>
+      <button class="sort-btn" data-sort="size-desc"><span class="sort-btn-icon">▾</span>サイズ 大→小</button>
+      <button class="sort-btn" data-sort="reverse"><span class="sort-btn-icon">⇅</span>逆順</button>
+      <button class="sort-btn" data-sort="rotate-all"><span class="sort-btn-icon">↻</span>すべて90°回転</button>
+    </div>
+    <div class="file-grid" id="fileGrid"></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="clearBtn" disabled>すべてクリア</button>
+    <button class="btn btn-primary" id="convertBtn" disabled>PDFに変換</button>
+  </div>
+
+  <div class="progress" id="progress">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <footer>
+    <div>Issue №01 · Bound in browser</div>
+    <div>Zero uploads · Client-side only</div>
+  </footer>
+
+</div>
+
+<script>
+  // jsPDFの読み込みチェック
+  if (typeof window.jspdf === 'undefined') {
+    document.body.innerHTML = `
+      <div style="max-width:600px;margin:4rem auto;padding:2rem;font-family:'Noto Sans JP',sans-serif;background:#fff;border:2px solid #d9531e;border-radius:8px;">
+        <h2 style="color:#d9531e;margin-bottom:1rem;">jsPDFライブラリが見つかりません</h2>
+        <p style="line-height:1.7;margin-bottom:1rem;">このHTMLファイルと<strong>同じフォルダ</strong>に <code style="background:#f4ede0;padding:2px 6px;border-radius:3px;">jspdf.umd.min.js</code> を配置してください。</p>
+        <p style="line-height:1.7;margin-bottom:1rem;">ダウンロード先:</p>
+        <p style="background:#f4ede0;padding:1rem;border-radius:4px;word-break:break-all;font-family:monospace;font-size:0.85rem;">
+          <a href="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" target="_blank" style="color:#a13a0f;">https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js</a>
+        </p>
+        <p style="line-height:1.7;color:#6b6256;font-size:0.9rem;margin-top:1rem;">上のリンクを右クリック →「リンク先を保存」で <code style="background:#f4ede0;padding:2px 6px;border-radius:3px;">jspdf.umd.min.js</code> として保存し、このHTMLと同じ場所に置いてから再度開いてください。</p>
+      </div>`;
+    throw new Error('jsPDF not loaded');
+  }
+
+  const { jsPDF } = window.jspdf;
+
+  const now = new Date();
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('dateStamp').textContent =
+    `${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileList = document.getElementById('fileList');
+  const fileGrid = document.getElementById('fileGrid');
+  const fileCount = document.getElementById('fileCount');
+  const convertBtn = document.getElementById('convertBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const status = document.getElementById('status');
+  const progress = document.getElementById('progress');
+  const progressBar = document.getElementById('progressBar');
+
+  let files = [];
+
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(ev => {
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('drag-over');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(ev => {
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    handleFiles(e.dataTransfer.files);
+  });
+
+  function handleFiles(fileListObj) {
+    const newFiles = Array.from(fileListObj).filter(f => f.type.startsWith('image/'));
+    if (newFiles.length === 0) {
+      showStatus('画像ファイルが選択されていません。', 'error');
+      return;
+    }
+
+    newFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        files.push({
+          id: Date.now() + Math.random(),
+          file: file,
+          dataUrl: e.target.result,
+          name: file.name,
+          size: file.size,
+          rotation: 0
+        });
+        renderFiles();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    showStatus(`${newFiles.length} 件の画像を読み込みました。`, 'success');
+  }
+
+  function renderFiles() {
+    if (files.length === 0) {
+      fileList.classList.add('hidden');
+      convertBtn.disabled = true;
+      clearBtn.disabled = true;
+      return;
+    }
+
+    fileList.classList.remove('hidden');
+    convertBtn.disabled = false;
+    clearBtn.disabled = false;
+    fileCount.textContent = `${files.length} 件`;
+
+    fileGrid.innerHTML = '';
+    files.forEach((f, idx) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.draggable = true;
+      item.dataset.id = f.id;
+      item.style.animationDelay = `${idx * 0.04}s`;
+      const isFirst = idx === 0;
+      const isLast = idx === files.length - 1;
+      item.innerHTML = `
+        <div class="file-order">${idx + 1}</div>
+        <div class="file-thumb-wrap">
+          <img class="file-thumb" src="${f.dataUrl}" alt="${escapeHtml(f.name)}" style="transform: rotate(${f.rotation}deg);">
+          <div class="rotation-badge ${f.rotation !== 0 ? 'visible' : ''}">${f.rotation}°</div>
+          <div class="file-overlay">
+            <button class="overlay-btn ${isFirst ? 'btn-disabled' : ''}" data-action="move-up" data-id="${f.id}" title="前へ">
+              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button class="overlay-btn" data-action="rotate-left" data-id="${f.id}" title="左に90°回転">
+              <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            </button>
+            <button class="overlay-btn" data-action="rotate-right" data-id="${f.id}" title="右に90°回転">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            </button>
+            <button class="overlay-btn ${isLast ? 'btn-disabled' : ''}" data-action="move-down" data-id="${f.id}" title="次へ">
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+        </div>
+        <div class="file-info">
+          <div class="file-meta">
+            <div class="file-name">${escapeHtml(f.name)}</div>
+            <div class="file-size">${formatSize(f.size)}</div>
+          </div>
+          <button class="file-remove" data-id="${f.id}" title="削除">×</button>
+        </div>
+      `;
+      fileGrid.appendChild(item);
+    });
+
+    // 操作ボタンのイベント
+    fileGrid.querySelectorAll('.overlay-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const id = parseFloat(btn.dataset.id);
+        const idx = files.findIndex(f => f.id === id);
+        if (idx === -1) return;
+
+        if (action === 'rotate-left') {
+          files[idx].rotation = (files[idx].rotation - 90 + 360) % 360;
+        } else if (action === 'rotate-right') {
+          files[idx].rotation = (files[idx].rotation + 90) % 360;
+        } else if (action === 'move-up' && idx > 0) {
+          [files[idx - 1], files[idx]] = [files[idx], files[idx - 1]];
+        } else if (action === 'move-down' && idx < files.length - 1) {
+          [files[idx], files[idx + 1]] = [files[idx + 1], files[idx]];
+        }
+        renderFiles();
+      });
+    });
+
+    fileGrid.querySelectorAll('.file-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseFloat(btn.dataset.id);
+        files = files.filter(f => f.id !== id);
+        renderFiles();
+      });
+    });
+
+    let draggedId = null;
+    fileGrid.querySelectorAll('.file-item').forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        draggedId = parseFloat(item.dataset.id);
+        item.classList.add('dragging');
+      });
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+      });
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const targetId = parseFloat(item.dataset.id);
+        if (draggedId === null || draggedId === targetId) return;
+        const fromIdx = files.findIndex(f => f.id === draggedId);
+        const toIdx = files.findIndex(f => f.id === targetId);
+        const [moved] = files.splice(fromIdx, 1);
+        files.splice(toIdx, 0, moved);
+        renderFiles();
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function showStatus(msg, type = '') {
+    status.textContent = msg;
+    status.className = 'status ' + type;
+  }
+
+  clearBtn.addEventListener('click', () => {
+    if (files.length === 0) return;
+    if (confirm('変換待ちのファイルをすべて削除しますか？')) {
+      files = [];
+      renderFiles();
+      showStatus('');
+    }
+  });
+
+  // 並び替えボタン
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (files.length === 0) return;
+      const sort = btn.dataset.sort;
+      const collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
+      if (sort === 'name-asc') {
+        files.sort((a, b) => collator.compare(a.name, b.name));
+      } else if (sort === 'name-desc') {
+        files.sort((a, b) => collator.compare(b.name, a.name));
+      } else if (sort === 'size-asc') {
+        files.sort((a, b) => a.size - b.size);
+      } else if (sort === 'size-desc') {
+        files.sort((a, b) => b.size - a.size);
+      } else if (sort === 'reverse') {
+        files.reverse();
+      } else if (sort === 'rotate-all') {
+        files.forEach(f => { f.rotation = (f.rotation + 90) % 360; });
+      }
+      renderFiles();
+      const labels = {
+        'name-asc': '名前順（昇順）に並び替えました',
+        'name-desc': '名前順（降順）に並び替えました',
+        'size-asc': 'サイズ順（小→大）に並び替えました',
+        'size-desc': 'サイズ順（大→小）に並び替えました',
+        'reverse': '逆順に並び替えました',
+        'rotate-all': 'すべての画像を90°回転しました'
+      };
+      showStatus(labels[sort] || '更新しました', 'success');
+    });
+  });
+
+  function loadImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  }
+
+  convertBtn.addEventListener('click', async () => {
+    if (files.length === 0) return;
+
+    const pageSize = document.getElementById('pageSize').value;
+    const orientationSetting = document.getElementById('orientation').value;
+    const margin = parseFloat(document.getElementById('margin').value);
+    const quality = parseFloat(document.getElementById('quality').value);
+    const filename = document.getElementById('filename').value.trim() || 'converted';
+
+    convertBtn.disabled = true;
+    clearBtn.disabled = true;
+    progress.classList.add('active');
+    progressBar.style.width = '0%';
+    showStatus('変換中…');
+
+    try {
+      let pdf = null;
+
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const img = await loadImage(f.dataUrl);
+
+        // 回転を反映：90/270度の場合は幅高さが入れ替わる
+        const rotation = f.rotation || 0;
+        const swapDims = rotation === 90 || rotation === 270;
+        const effectiveW = swapDims ? img.naturalHeight : img.naturalWidth;
+        const effectiveH = swapDims ? img.naturalWidth : img.naturalHeight;
+
+        let orient = orientationSetting;
+        if (orient === 'auto') {
+          orient = effectiveW >= effectiveH ? 'landscape' : 'portrait';
+        }
+
+        let imgData = f.dataUrl;
+        let imgFormat = 'JPEG';
+        const mime = f.file.type;
+
+        // 回転がある場合、またはJPEG/PNG以外の場合はCanvasで再エンコード
+        if (rotation !== 0 || (mime !== 'image/png' && mime !== 'image/jpeg' && mime !== 'image/jpg')) {
+          const canvas = document.createElement('canvas');
+          canvas.width = effectiveW;
+          canvas.height = effectiveH;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate((rotation * Math.PI) / 180);
+          ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+          ctx.restore();
+
+          // PNGで透過を保持したい場合はPNG、それ以外はJPEG
+          if (mime === 'image/png' && rotation === 0) {
+            imgData = canvas.toDataURL('image/png');
+            imgFormat = 'PNG';
+          } else {
+            imgData = canvas.toDataURL('image/jpeg', quality);
+            imgFormat = 'JPEG';
+          }
+        } else if (mime === 'image/png') {
+          imgFormat = 'PNG';
+        } else {
+          imgFormat = 'JPEG';
+        }
+
+        let pageFormat, pageW, pageH;
+        if (pageSize === 'fit') {
+          const mmPerPx = 25.4 / 96;
+          pageW = effectiveW * mmPerPx;
+          pageH = effectiveH * mmPerPx;
+          pageFormat = [pageW, pageH];
+          orient = pageW >= pageH ? 'landscape' : 'portrait';
+        } else {
+          pageFormat = pageSize;
+        }
+
+        if (pdf === null) {
+          pdf = new jsPDF({
+            orientation: orient,
+            unit: 'mm',
+            format: pageFormat,
+            compress: true
+          });
+        } else {
+          pdf.addPage(pageFormat, orient);
+        }
+
+        const finalPageW = pdf.internal.pageSize.getWidth();
+        const finalPageH = pdf.internal.pageSize.getHeight();
+
+        const availW = finalPageW - margin * 2;
+        const availH = finalPageH - margin * 2;
+
+        let drawW, drawH;
+        if (pageSize === 'fit') {
+          drawW = finalPageW - margin * 2;
+          drawH = finalPageH - margin * 2;
+        } else {
+          const imgRatio = effectiveW / effectiveH;
+          const availRatio = availW / availH;
+          if (imgRatio > availRatio) {
+            drawW = availW;
+            drawH = availW / imgRatio;
+          } else {
+            drawH = availH;
+            drawW = availH * imgRatio;
+          }
+        }
+
+        const x = (finalPageW - drawW) / 2;
+        const y = (finalPageH - drawH) / 2;
+
+        pdf.addImage(imgData, imgFormat, x, y, drawW, drawH, undefined, 'FAST');
+
+        const pct = ((i + 1) / files.length) * 100;
+        progressBar.style.width = pct + '%';
+        showStatus(`変換中… ${i + 1} / ${files.length}`);
+
+        await new Promise(r => setTimeout(r, 10));
+      }
+
+      pdf.save(filename.replace(/\.pdf$/i, '') + '.pdf');
+
+      showStatus(`✓ 完了 ・ ${files.length} ページを「${filename}.pdf」として保存しました。`, 'success');
+      progressBar.style.width = '100%';
+
+      setTimeout(() => {
+        progress.classList.remove('active');
+        progressBar.style.width = '0%';
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      showStatus('エラー: ' + (err.message || '変換に失敗しました'), 'error');
+      progress.classList.remove('active');
+    } finally {
+      convertBtn.disabled = false;
+      clearBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
