@@ -284,12 +284,133 @@
     cursor: grabbing;
   }
 
-  .file-thumb {
+  .file-thumb-wrap {
+    position: relative;
     width: 100%;
     height: 140px;
-    object-fit: cover;
     background: var(--paper-dim);
+    overflow: hidden;
+  }
+
+  .file-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     display: block;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+    background: var(--paper-dim);
+  }
+
+  .file-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 22, 18, 0.7);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    padding: 0.5rem;
+  }
+
+  .file-item:hover .file-overlay {
+    opacity: 1;
+  }
+
+  .overlay-btn {
+    background: var(--paper);
+    border: 1px solid var(--paper);
+    color: var(--ink);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0;
+  }
+
+  .overlay-btn:hover {
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
+    transform: scale(1.1);
+  }
+
+  .overlay-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .overlay-btn.btn-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .rotation-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: var(--accent);
+    color: var(--paper);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .rotation-badge.visible {
+    opacity: 1;
+  }
+
+  /* Sort options bar */
+  .sort-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .sort-btn {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.7rem;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 0.4rem 0.85rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  .sort-btn:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .sort-btn-icon {
+    display: inline-block;
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
   }
 
   .file-info {
@@ -547,6 +668,14 @@
       <div class="file-list-title">— 変換待ち ・ ドラッグで並び替え —</div>
       <div class="file-count" id="fileCount">0 件</div>
     </div>
+    <div class="sort-bar" style="margin-bottom:1rem;">
+      <button class="sort-btn" data-sort="name-asc"><span class="sort-btn-icon">A↓</span>名前 昇順</button>
+      <button class="sort-btn" data-sort="name-desc"><span class="sort-btn-icon">A↑</span>名前 降順</button>
+      <button class="sort-btn" data-sort="size-asc"><span class="sort-btn-icon">▴</span>サイズ 小→大</button>
+      <button class="sort-btn" data-sort="size-desc"><span class="sort-btn-icon">▾</span>サイズ 大→小</button>
+      <button class="sort-btn" data-sort="reverse"><span class="sort-btn-icon">⇅</span>逆順</button>
+      <button class="sort-btn" data-sort="rotate-all"><span class="sort-btn-icon">↻</span>すべて90°回転</button>
+    </div>
     <div class="file-grid" id="fileGrid"></div>
   </div>
 
@@ -644,7 +773,8 @@
           file: file,
           dataUrl: e.target.result,
           name: file.name,
-          size: file.size
+          size: file.size,
+          rotation: 0
         });
         renderFiles();
       };
@@ -674,9 +804,28 @@
       item.draggable = true;
       item.dataset.id = f.id;
       item.style.animationDelay = `${idx * 0.04}s`;
+      const isFirst = idx === 0;
+      const isLast = idx === files.length - 1;
       item.innerHTML = `
         <div class="file-order">${idx + 1}</div>
-        <img class="file-thumb" src="${f.dataUrl}" alt="${escapeHtml(f.name)}">
+        <div class="file-thumb-wrap">
+          <img class="file-thumb" src="${f.dataUrl}" alt="${escapeHtml(f.name)}" style="transform: rotate(${f.rotation}deg);">
+          <div class="rotation-badge ${f.rotation !== 0 ? 'visible' : ''}">${f.rotation}°</div>
+          <div class="file-overlay">
+            <button class="overlay-btn ${isFirst ? 'btn-disabled' : ''}" data-action="move-up" data-id="${f.id}" title="前へ">
+              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button class="overlay-btn" data-action="rotate-left" data-id="${f.id}" title="左に90°回転">
+              <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            </button>
+            <button class="overlay-btn" data-action="rotate-right" data-id="${f.id}" title="右に90°回転">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            </button>
+            <button class="overlay-btn ${isLast ? 'btn-disabled' : ''}" data-action="move-down" data-id="${f.id}" title="次へ">
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+        </div>
         <div class="file-info">
           <div class="file-meta">
             <div class="file-name">${escapeHtml(f.name)}</div>
@@ -686,6 +835,28 @@
         </div>
       `;
       fileGrid.appendChild(item);
+    });
+
+    // 操作ボタンのイベント
+    fileGrid.querySelectorAll('.overlay-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const id = parseFloat(btn.dataset.id);
+        const idx = files.findIndex(f => f.id === id);
+        if (idx === -1) return;
+
+        if (action === 'rotate-left') {
+          files[idx].rotation = (files[idx].rotation - 90 + 360) % 360;
+        } else if (action === 'rotate-right') {
+          files[idx].rotation = (files[idx].rotation + 90) % 360;
+        } else if (action === 'move-up' && idx > 0) {
+          [files[idx - 1], files[idx]] = [files[idx], files[idx - 1]];
+        } else if (action === 'move-down' && idx < files.length - 1) {
+          [files[idx], files[idx + 1]] = [files[idx + 1], files[idx]];
+        }
+        renderFiles();
+      });
     });
 
     fileGrid.querySelectorAll('.file-remove').forEach(btn => {
@@ -748,6 +919,38 @@
     }
   });
 
+  // 並び替えボタン
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (files.length === 0) return;
+      const sort = btn.dataset.sort;
+      const collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
+      if (sort === 'name-asc') {
+        files.sort((a, b) => collator.compare(a.name, b.name));
+      } else if (sort === 'name-desc') {
+        files.sort((a, b) => collator.compare(b.name, a.name));
+      } else if (sort === 'size-asc') {
+        files.sort((a, b) => a.size - b.size);
+      } else if (sort === 'size-desc') {
+        files.sort((a, b) => b.size - a.size);
+      } else if (sort === 'reverse') {
+        files.reverse();
+      } else if (sort === 'rotate-all') {
+        files.forEach(f => { f.rotation = (f.rotation + 90) % 360; });
+      }
+      renderFiles();
+      const labels = {
+        'name-asc': '名前順（昇順）に並び替えました',
+        'name-desc': '名前順（降順）に並び替えました',
+        'size-asc': 'サイズ順（小→大）に並び替えました',
+        'size-desc': 'サイズ順（大→小）に並び替えました',
+        'reverse': '逆順に並び替えました',
+        'rotate-all': 'すべての画像を90°回転しました'
+      };
+      showStatus(labels[sort] || '更新しました', 'success');
+    });
+  });
+
   function loadImage(dataUrl) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -779,35 +982,54 @@
         const f = files[i];
         const img = await loadImage(f.dataUrl);
 
+        // 回転を反映：90/270度の場合は幅高さが入れ替わる
+        const rotation = f.rotation || 0;
+        const swapDims = rotation === 90 || rotation === 270;
+        const effectiveW = swapDims ? img.naturalHeight : img.naturalWidth;
+        const effectiveH = swapDims ? img.naturalWidth : img.naturalHeight;
+
         let orient = orientationSetting;
         if (orient === 'auto') {
-          orient = img.width >= img.height ? 'landscape' : 'portrait';
+          orient = effectiveW >= effectiveH ? 'landscape' : 'portrait';
         }
 
         let imgData = f.dataUrl;
         let imgFormat = 'JPEG';
         const mime = f.file.type;
-        if (mime === 'image/png') {
-          imgFormat = 'PNG';
-        } else if (mime === 'image/jpeg' || mime === 'image/jpg') {
-          imgFormat = 'JPEG';
-        } else {
+
+        // 回転がある場合、またはJPEG/PNG以外の場合はCanvasで再エンコード
+        if (rotation !== 0 || (mime !== 'image/png' && mime !== 'image/jpeg' && mime !== 'image/jpg')) {
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
+          canvas.width = effectiveW;
+          canvas.height = effectiveH;
           const ctx = canvas.getContext('2d');
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          imgData = canvas.toDataURL('image/jpeg', quality);
+          ctx.save();
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate((rotation * Math.PI) / 180);
+          ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+          ctx.restore();
+
+          // PNGで透過を保持したい場合はPNG、それ以外はJPEG
+          if (mime === 'image/png' && rotation === 0) {
+            imgData = canvas.toDataURL('image/png');
+            imgFormat = 'PNG';
+          } else {
+            imgData = canvas.toDataURL('image/jpeg', quality);
+            imgFormat = 'JPEG';
+          }
+        } else if (mime === 'image/png') {
+          imgFormat = 'PNG';
+        } else {
           imgFormat = 'JPEG';
         }
 
         let pageFormat, pageW, pageH;
         if (pageSize === 'fit') {
           const mmPerPx = 25.4 / 96;
-          pageW = img.naturalWidth * mmPerPx;
-          pageH = img.naturalHeight * mmPerPx;
+          pageW = effectiveW * mmPerPx;
+          pageH = effectiveH * mmPerPx;
           pageFormat = [pageW, pageH];
           orient = pageW >= pageH ? 'landscape' : 'portrait';
         } else {
@@ -836,7 +1058,7 @@
           drawW = finalPageW - margin * 2;
           drawH = finalPageH - margin * 2;
         } else {
-          const imgRatio = img.naturalWidth / img.naturalHeight;
+          const imgRatio = effectiveW / effectiveH;
           const availRatio = availW / availH;
           if (imgRatio > availRatio) {
             drawW = availW;
